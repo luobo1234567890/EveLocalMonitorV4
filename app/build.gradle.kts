@@ -1,7 +1,29 @@
-plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
+plugins { 
+    id("com.android.application") 
+    id("org.jetbrains.kotlin.android") 
+}
 
-android { namespace = "com.eve.localmonitor"; compileSdk = 35
-    defaultConfig { applicationId = "com.eve.localmonitor"; minSdk = 26; targetSdk = 35; versionCode = 4; versionName = "4.0" }
+android { 
+    namespace = "com.eve.localmonitor" 
+    compileSdk = 35
+
+    defaultConfig { 
+        applicationId = "com.eve.localmonitor" 
+        minSdk = 26 
+        targetSdk = 35 
+        versionCode = 4 
+        versionName = "4.0" 
+    }
+
+    // 加上下面这段，将 Java 编译版本显式指定为 17，与 Kotlin 保持一致
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 dependencies {
