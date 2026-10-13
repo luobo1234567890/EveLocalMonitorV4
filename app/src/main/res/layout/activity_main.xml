@@ -1,19 +1,104 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#111111">
-    <androidx.camera.view.PreviewView android:id="@+id/preview" android:layout_width="match_parent" android:layout_height="match_parent" />
-    <com.eve.localmonitor.RoiOverlay android:id="@+id/roi" android:layout_width="match_parent" android:layout_height="match_parent" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp" android:background="#CC111111">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <Button android:id="@+id/start" android:text="开始监控" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-            <Button android:id="@+id/stopAlarm" android:text="停止报警" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-            <CheckBox android:id="@+id/vibrate" android:text="震动" android:textColor="#ffffff" android:checked="true" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-            <Button android:id="@+id/sound" android:text="选择报警音" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" 
+    android:id="@+id/root" 
+    android:layout_width="match_parent" 
+    android:layout_height="match_parent" 
+    android:background="#111111">
+
+    <!-- 摄像头预览区域 -->
+    <androidx.camera.view.PreviewView 
+        android:id="@+id/preview" 
+        android:layout_width="match_parent" 
+        android:layout_height="match_parent" />
+
+    <!-- 选区遮罩覆盖层 -->
+    <com.eve.localmonitor.RoiOverlay 
+        android:id="@+id/roi" 
+        android:layout_width="match_parent" 
+        android:layout_height="match_parent" />
+
+    <!-- 底部控制面板（竖屏优化：采用垂直布局，增大按钮间距与点击范围） -->
+    <LinearLayout 
+        android:layout_width="match_parent" 
+        android:layout_height="wrap_content" 
+        android:layout_gravity="bottom"
+        android:orientation="vertical" 
+        android:padding="12dp" 
+        android:background="#CC111111">
+
+        <!-- 第一行按钮：开始监控、停止报警、选择报警音 -->
+        <LinearLayout 
+            android:layout_width="match_parent" 
+            android:layout_height="wrap_content" 
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="8dp">
+            
+            <Button 
+                android:id="@+id/start" 
+                android:text="开始监控" 
+                android:layout_width="0dp" 
+                android:layout_weight="1" 
+                android:layout_height="48dp"
+                android:layout_marginEnd="4=" />
+                
+            <Button 
+                android:id="@+id/stopAlarm" 
+                android:text="停止报警" 
+                android:layout_width="0dp" 
+                android:layout_weight="1" 
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp" />
+                
+            <Button 
+                android:id="@+id/sound" 
+                android:text="选择报警音" 
+                android:layout_width="0dp" 
+                android:layout_weight="1" 
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp" />
         </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-            <TextView android:text="灵敏度" android:textColor="#ffffff" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-            <SeekBar android:id="@+id/strength" android:max="100" android:progress="90" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" />
-            <TextView android:text="变焦" android:textColor="#ffffff" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-            <SeekBar android:id="@+id/zoom" android:max="100" android:progress="0" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" />
+
+        <!-- 第二行：震动选项与变焦调节 -->
+        <LinearLayout 
+            android:layout_width="match_parent" 
+            android:layout_height="wrap_content" 
+            android:orientation="horizontal" 
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <CheckBox 
+                android:id="@+id/vibrate" 
+                android:text="震动" 
+                android:textColor="#ffffff" 
+                android:checked="true" 
+                android:layout_width="wrap_content" 
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp" />
+
+            <TextView 
+                android:text="变焦" 
+                android:textColor="#ffffff" 
+                android:layout_width="wrap_content" 
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp" />
+
+            <SeekBar 
+                android:id="@+id/zoom" 
+                android:max="100" 
+                android:progress="0" 
+                android:layout_width="0dp" 
+                android:layout_weight="1" 
+                android:layout_height="wrap_content" />
         </LinearLayout>
-        <TextView android:id="@+id/status" android:text="状态：未开始" android:textColor="#ffffff" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+        <!-- 状态显示文本 -->
+        <TextView 
+            android:id="@+id/status" 
+            android:text="状态：未开始" 
+            android:textColor="#ffffff" 
+            android:textSize="14sp"
+            android:layout_width="match_parent" 
+            android:layout_height="wrap_content" />
     </LinearLayout>
 </FrameLayout>
