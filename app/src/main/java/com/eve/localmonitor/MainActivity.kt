@@ -139,7 +139,7 @@ class MainActivity: ComponentActivity(){
             findViewById<TextView>(R.id.status).text = "状态：发现目标！报警中"
             if(!forced) startAlarm()
             if(findViewById<CheckBox>(R.id.vibrate).isChecked){
-                (getSystemService(VIBRATOR_SERVICE) as Vibrator).vibrate(VibrationEffect.createOneShot(500, Vibrator.DEFAULT_AMPLITUDE))
+                (getSystemService(VIBRATOR_SERVICE) as Vibrator).vibrate(VibrationEffect.createOneShot(500, 255))
             }
         }else if(!hit && detected){
             detected = false
