@@ -1,0 +1,19 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#111111">
+    <androidx.camera.view.PreviewView android:id="@+id/preview" android:layout_width="match_parent" android:layout_height="match_parent" />
+    <com.eve.localmonitor.RoiOverlay android:id="@+id/roi" android:layout_width="match_parent" android:layout_height="match_parent" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp" android:background="#CC111111">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <Button android:id="@+id/start" android:text="开始监控" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+            <Button android:id="@+id/stopAlarm" android:text="停止报警" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+            <CheckBox android:id="@+id/vibrate" android:text="震动" android:textColor="#ffffff" android:checked="true" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+            <Button android:id="@+id/sound" android:text="选择报警音" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:text="灵敏度" android:textColor="#ffffff" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+            <SeekBar android:id="@+id/strength" android:max="100" android:progress="90" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" />
+            <TextView android:text="变焦" android:textColor="#ffffff" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+            <SeekBar android:id="@+id/zoom" android:max="100" android:progress="0" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" />
+        </LinearLayout>
+        <TextView android:id="@+id/status" android:text="状态：未开始" android:textColor="#ffffff" android:layout_width="match_parent" android:layout_height="wrap_content" />
+    </LinearLayout>
+</FrameLayout>
