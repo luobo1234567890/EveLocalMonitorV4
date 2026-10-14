@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.*
 import android.content.pm.PackageManager
 import android.media.*
+import android.net.Uri
 import android.os.*
 import android.provider.Settings
 import android.view.*
@@ -25,7 +26,7 @@ class MainActivity: ComponentActivity(){
     private var alarm: MediaPlayer? = null
     private var detected = false
     private var forced = false
-    private var selectedSound: android.net.Uri? = null
+    private var selectedSound: Uri? = null
     private var cameraInstance: Camera? = null
     private val exec = Executors.newSingleThreadExecutor()
     private var isLocked = false
@@ -40,7 +41,7 @@ class MainActivity: ComponentActivity(){
         zoomSeekBar = findViewById(R.id.zoom)
         btnLock = findViewById(R.id.btnLock)
 
-        // 加载上次保存的配置（焦距、红框位置、锁定状态）
+        // 加载上次保存的配置
         loadPreferences()
 
         // 变焦控制
@@ -55,7 +56,7 @@ class MainActivity: ComponentActivity(){
             override fun onStopTrackingTouch(s: SeekBar?){}
         })
 
-        // 锁定 / 解除固定按钮点击事件
+        // 锁定 / 解除固定按钮
         btnLock.setOnClickListener {
             isLocked = !isLocked
             updateLockState()
@@ -65,7 +66,11 @@ class MainActivity: ComponentActivity(){
         findViewById<Button>(R.id.start).setOnClickListener{ forced = false; startCamera() }
         findViewById<Button>(R.id.stopAlarm).setOnClickListener{ forced = true; stopAlarm() }
         findViewById<Button>(R.id.sound).setOnClickListener{
-            val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply{ type = "audio/*"; addCategory(Intent.CATEGORY_OPENABLE) }
+            val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply{ 
+                type = "audio/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            }
             startActivityForResult(i, 88)
         }
 
@@ -75,6 +80,10 @@ class MainActivity: ComponentActivity(){
     }
 
     private fun updateLockState() {
+        // 同步给 RoiOverlay 禁忌触摸
+        roi.isLocked = isLocked
+        roi.invalidate()
+
         if (isLocked) {
             btnLock.text = "解除固定"
             zoomSeekBar.isEnabled = false
@@ -91,7 +100,7 @@ class MainActivity: ComponentActivity(){
         prefs.edit().apply {
             putBoolean("isLocked", isLocked)
             putInt("zoomProgress", zoomSeekBar.progress)
-            // 保存红框四个角的比例位置
+            putString("selectedSoundUri", selectedSound?.toString())
             putFloat("roiLeft", roi.roi.left)
             putFloat("roiTop", roi.roi.top)
             putFloat("roiRight", roi.roi.right)
@@ -106,13 +115,21 @@ class MainActivity: ComponentActivity(){
         val zoomProgress = prefs.getInt("zoomProgress", 0)
         zoomSeekBar.progress = zoomProgress
 
+        // 恢复声音 Uri
+        val soundUriStr = prefs.getString("selectedSoundUri", null)
+        if (soundUriStr != null) {
+            try {
+                selectedSound = Uri.parse(soundUriStr)
+            } catch (_: Exception) {}
+        }
+
         // 恢复红框位置
         val left = prefs.getFloat("roiLeft", -1f)
         if (left != -1f) {
             roi.roi.left = left
-            roi.roi.top = prefs.getFloat("roiTop", 0.2f)
-            roi.roi.right = prefs.getFloat("roiRight", 0.8f)
-            roi.roi.bottom = prefs.getFloat("roiBottom", 0.8f)
+            roi.roi.top = prefs.getFloat("roiTop", 0.15f)
+            roi.roi.right = prefs.getFloat("roiRight", 0.85f)
+            roi.roi.bottom = prefs.getFloat("roiBottom", 0.85f)
             roi.invalidate()
         }
 
@@ -121,7 +138,18 @@ class MainActivity: ComponentActivity(){
 
     override fun onActivityResult(r: Int, c: Int, d: Intent?){
         super.onActivityResult(r, c, d)
-        if(r == 88 && c == RESULT_OK) selectedSound = d?.data
+        if(r == 88 && c == RESULT_OK && d != null) {
+            val uri = d.data
+            if (uri != null) {
+                try {
+                    // 获取持久化读取权限，防止重启后失效
+                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (_: Exception) {}
+                selectedSound = uri
+                savePreferences()
+                Toast.makeText(this, "自定义报警音已保存", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun startCamera(){
@@ -141,14 +169,13 @@ class MainActivity: ComponentActivity(){
             p.unbindAll()
             cameraInstance = p.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, pv, a)
             
-            // 相机绑定后，应用保存的变焦值
             cameraInstance?.cameraControl?.setLinearZoom(zoomSeekBar.progress / 100f)
             
             findViewById<TextView>(R.id.status).text = "状态：监控中 (竖屏)"
         }, ContextCompat.getMainExecutor(this))
     }
 
-    // 颜色检测与竖屏坐标对齐
+    // 修复后的颜色检测与精准对齐的红框范围映射
     private fun detect(im: ImageProxy): Boolean{
         val buf = im.planes[0].buffer
         val data = ByteArray(buf.remaining())
@@ -156,10 +183,11 @@ class MainActivity: ComponentActivity(){
         val w = im.width
         val h = im.height
         
-        val l = ((1f - roi.roi.bottom) * w).toInt().coerceIn(0, w - 1)
-        val r = ((1f - roi.roi.top) * w).toInt().coerceIn(l + 1, w)
-        val t = ((1f - roi.roi.right) * h).toInt().coerceIn(0, h - 1)
-        val b = ((1f - roi.roi.left) * h).toInt().coerceIn(t + 1, h)
+        // 精准对齐红框范围
+        val l = (roi.roi.left * w).toInt().coerceIn(0, w - 1)
+        val r = (roi.roi.right * w).toInt().coerceIn(l + 1, w)
+        val t = (roi.roi.top * h).toInt().coerceIn(0, h - 1)
+        val b = (roi.roi.bottom * h).toInt().coerceIn(t + 1, h)
 
         var hit = 0
         var total = 0
