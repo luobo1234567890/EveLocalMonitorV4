@@ -6,7 +6,7 @@ import android.view.*
 class RoiOverlay(c: Context, a: android.util.AttributeSet?=null): View(c,a) {
     val roi = RectF(0.15f,0.15f,0.85f,0.85f); private var mode=0; private var sx=0f; private var sy=0f
     
-    // 新增：锁定开关，为 true 时禁止任何拖动和调整
+    // 锁定开关：为 true 时禁止任何拖动和调整
     var isLocked = false
 
     override fun onDraw(c: Canvas){ 
@@ -20,7 +20,7 @@ class RoiOverlay(c: Context, a: android.util.AttributeSet?=null): View(c,a) {
         shade.color=Color.TRANSPARENT; 
         c.drawRect(l,t,r,b,shade)
         
-        // 如果未锁定，正常显示红框和调整圆点；如果已锁定，可以把颜色变暗或保持不变
+        // 锁定后红框颜色变为黄色且隐藏右下角拖动圆点
         val p=Paint().apply{style=Paint.Style.STROKE;strokeWidth=5f;color=if(isLocked) Color.YELLOW else Color.RED}; 
         c.drawRect(l,t,r,b,p)
         
@@ -31,7 +31,7 @@ class RoiOverlay(c: Context, a: android.util.AttributeSet?=null): View(c,a) {
     }
     
     override fun onTouchEvent(e: MotionEvent): Boolean { 
-        // 如果已锁定，直接拦截触摸事件，不让用户拖动
+        // 如果已锁定，直接拦截触摸事件，红框无法移动
         if (isLocked) return false 
 
         val x=e.x/width; 
