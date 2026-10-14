@@ -88,8 +88,9 @@ class MainActivity: ComponentActivity(){
         val h = im.height
         
         // 核心修复：将竖屏 UI 上的红框相对坐标，精准映射到相机的实际像素坐标系中
-        val l = (roi.roi.top * w).toInt().coerceIn(0, w - 1)
-        val r = (roi.roi.bottom * w).toInt().coerceIn(l + 1, w)
+// 修正水平方向偏移（将检测范围向左平移对齐红框）
+        val l = ((1f - roi.roi.bottom) * w).toInt().coerceIn(0, w - 1)
+        val r = ((1f - roi.roi.top) * w).toInt().coerceIn(l + 1, w)
         val t = ((1f - roi.roi.right) * h).toInt().coerceIn(0, h - 1)
         val b = ((1f - roi.roi.left) * h).toInt().coerceIn(t + 1, h)
 
