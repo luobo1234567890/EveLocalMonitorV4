@@ -33,7 +33,7 @@ class MainActivity: ComponentActivity(){
         preview = findViewById(R.id.preview)
         roi = findViewById(R.id.roi)
 
-        // 缩放控制保持不变
+        // 变焦控制
         findViewById<SeekBar>(R.id.zoom).setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(s: SeekBar?, p: Int, f: Boolean){
                 cameraInstance?.cameraControl?.setLinearZoom(p / 100f)
@@ -79,17 +79,20 @@ class MainActivity: ComponentActivity(){
         }, ContextCompat.getMainExecutor(this))
     }
 
-    // 固定的红颜色及相近色检测逻辑（去除了灵敏度滑块干扰，采用固定阈值）
+    // 修复后的竖屏颜色检测与坐标对齐逻辑
     private fun detect(im: ImageProxy): Boolean{
         val buf = im.planes[0].buffer
         val data = ByteArray(buf.remaining())
         buf.get(data)
         val w = im.width
         val h = im.height
-        val l = (roi.roi.left * w).toInt().coerceIn(0, w - 1)
-        val r = (roi.roi.right * w).toInt().coerceIn(l + 1, w)
-        val t = (roi.roi.top * h).toInt().coerceIn(0, h - 1)
-        val b = (roi.roi.bottom * h).toInt().coerceIn(t + 1, h)
+        
+        // 核心修复：将竖屏 UI 上的红框相对坐标，精准映射到相机的实际像素坐标系中
+        val l = (roi.roi.top * w).toInt().coerceIn(0, w - 1)
+        val r = (roi.roi.bottom * w).toInt().coerceIn(l + 1, w)
+        val t = ((1f - roi.roi.right) * h).toInt().coerceIn(0, h - 1)
+        val b = ((1f - roi.roi.left) * h).toInt().coerceIn(t + 1, h)
+
         var hit = 0
         var total = 0
         val step = 2
@@ -109,13 +112,12 @@ class MainActivity: ComponentActivity(){
                     else -> 60f * (4f + (rr - g) / (mx - mn))
                 }
                 val hh = (hue + 360) % 360
-                // 固定检测：纯红、橙红色、粉红色等相近颜色
+                // 固定检测红、橙红、粉红等相近颜色
                 val isRedOrSimilar = (hh < 30 || hh > 330) && rr > g && rr > bb
                 if(isRedOrSimilar) hit++
                 total++
             }
         }
-        // 固定判定条件：只要区域内占比达到一定比例就触发
         return total > 0 && hit.toFloat() / total >= 0.001f
     }
 
@@ -126,7 +128,7 @@ class MainActivity: ComponentActivity(){
             findViewById<TextView>(R.id.status).text = "状态：发现目标！报警中"
             if(!forced) startAlarm()
             
-            // 修复震动选项不起作用的问题
+            // 震动触发
             val vibrateCb = findViewById<CheckBox>(R.id.vibrate)
             if(vibrateCb != null && vibrateCb.isChecked){
                 val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
