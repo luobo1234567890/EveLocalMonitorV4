@@ -80,7 +80,7 @@ class MainActivity: ComponentActivity(){
     }
 
     private fun updateLockState() {
-        // 同步给 RoiOverlay 禁忌触摸
+        // 同步给 RoiOverlay 禁止触摸
         roi.isLocked = isLocked
         roi.invalidate()
 
@@ -142,7 +142,6 @@ class MainActivity: ComponentActivity(){
             val uri = d.data
             if (uri != null) {
                 try {
-                    // 获取持久化读取权限，防止重启后失效
                     contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 } catch (_: Exception) {}
                 selectedSound = uri
@@ -175,7 +174,7 @@ class MainActivity: ComponentActivity(){
         }, ContextCompat.getMainExecutor(this))
     }
 
-    // 修复后的颜色检测与精准对齐的红框范围映射
+    // 适配竖屏旋转角度的精准颜色检测与坐标映射
     private fun detect(im: ImageProxy): Boolean{
         val buf = im.planes[0].buffer
         val data = ByteArray(buf.remaining())
@@ -183,11 +182,29 @@ class MainActivity: ComponentActivity(){
         val w = im.width
         val h = im.height
         
-        // 精准对齐红框范围
-        val l = (roi.roi.left * w).toInt().coerceIn(0, w - 1)
-        val r = (roi.roi.right * w).toInt().coerceIn(l + 1, w)
-        val t = (roi.roi.top * h).toInt().coerceIn(0, h - 1)
-        val b = (roi.roi.bottom * h).toInt().coerceIn(t + 1, h)
+        val rotation = im.imageInfo.rotationDegrees
+
+        val l: Int
+        val r: Int
+        val t: Int
+        val b: Int
+
+        if (rotation == 90) {
+            l = (roi.roi.top * w).toInt().coerceIn(0, w - 1)
+            r = (roi.roi.bottom * w).toInt().coerceIn(l + 1, w)
+            t = ((1f - roi.roi.right) * h).toInt().coerceIn(0, h - 1)
+            b = ((1f - roi.roi.left) * h).toInt().coerceIn(t + 1, h)
+        } else if (rotation == 270) {
+            l = ((1f - roi.roi.bottom) * w).toInt().coerceIn(0, w - 1)
+            r = ((1f - roi.roi.top) * w).toInt().coerceIn(l + 1, w)
+            t = (roi.roi.left * h).toInt().coerceIn(0, h - 1)
+            b = (roi.roi.right * h).toInt().coerceIn(t + 1, h)
+        } else {
+            l = (roi.roi.left * w).toInt().coerceIn(0, w - 1)
+            r = (roi.roi.right * w).toInt().coerceIn(l + 1, w)
+            t = (roi.roi.top * h).toInt().coerceIn(0, h - 1)
+            b = (roi.roi.bottom * h).toInt().coerceIn(t + 1, h)
+        }
 
         var hit = 0
         var total = 0
