@@ -16,7 +16,7 @@
         android:layout_width="match_parent" 
         android:layout_height="match_parent" />
 
-    <!-- 底部控制面板（竖屏优化：采用垂直布局，增大按钮间距与点击范围） -->
+    <!-- 底部控制面板 -->
     <LinearLayout 
         android:layout_width="match_parent" 
         android:layout_height="wrap_content" 
@@ -59,13 +59,22 @@
                 android:layout_marginStart="4dp" />
         </LinearLayout>
 
-        <!-- 第二行：震动选项与变焦调节 -->
+        <!-- 第二行：锁定按钮、震动选项与变焦调节 -->
         <LinearLayout 
             android:layout_width="match_parent" 
             android:layout_height="wrap_content" 
             android:orientation="horizontal" 
             android:gravity="center_vertical"
             android:layout_marginBottom="8dp">
+
+            <!-- 新增：锁定/解除固定按钮 -->
+            <Button 
+                android:id="@+id/btnLock" 
+                android:text="锁定红框焦距" 
+                android:layout_width="wrap_content" 
+                android:layout_height="40dp"
+                android:textSize="12sp"
+                android:layout_marginEnd="8dp" />
 
             <CheckBox 
                 android:id="@+id/vibrate" 
@@ -74,14 +83,14 @@
                 android:checked="true" 
                 android:layout_width="wrap_content" 
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="12dp" />
+                android:layout_marginEnd="8dp" />
 
             <TextView 
                 android:text="变焦" 
                 android:textColor="#ffffff" 
                 android:layout_width="wrap_content" 
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp" />
+                android:layout_marginEnd="4dp" />
 
             <SeekBar 
                 android:id="@+id/zoom" 
