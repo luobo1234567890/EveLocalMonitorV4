@@ -20,27 +20,47 @@ import kotlin.math.*
 class MainActivity: ComponentActivity(){
     private lateinit var preview: PreviewView
     private lateinit var roi: RoiOverlay
+    private lateinit var zoomSeekBar: SeekBar
+    private lateinit var btnLock: Button
     private var alarm: MediaPlayer? = null
     private var detected = false
     private var forced = false
     private var selectedSound: android.net.Uri? = null
     private var cameraInstance: Camera? = null
     private val exec = Executors.newSingleThreadExecutor()
+    private var isLocked = false
+
+    private val PREFS_NAME = "EveMonitorPrefs"
 
     override fun onCreate(b: Bundle?){
         super.onCreate(b)
         setContentView(R.layout.activity_main)
         preview = findViewById(R.id.preview)
         roi = findViewById(R.id.roi)
+        zoomSeekBar = findViewById(R.id.zoom)
+        btnLock = findViewById(R.id.btnLock)
+
+        // 加载上次保存的配置（焦距、红框位置、锁定状态）
+        loadPreferences()
 
         // 变焦控制
-        findViewById<SeekBar>(R.id.zoom).setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener{
+        zoomSeekBar.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(s: SeekBar?, p: Int, f: Boolean){
-                cameraInstance?.cameraControl?.setLinearZoom(p / 100f)
+                if (!isLocked) {
+                    cameraInstance?.cameraControl?.setLinearZoom(p / 100f)
+                    savePreferences()
+                }
             }
             override fun onStartTrackingTouch(s: SeekBar?){}
             override fun onStopTrackingTouch(s: SeekBar?){}
         })
+
+        // 锁定 / 解除固定按钮点击事件
+        btnLock.setOnClickListener {
+            isLocked = !isLocked
+            updateLockState()
+            savePreferences()
+        }
 
         findViewById<Button>(R.id.start).setOnClickListener{ forced = false; startCamera() }
         findViewById<Button>(R.id.stopAlarm).setOnClickListener{ forced = true; stopAlarm() }
@@ -52,6 +72,51 @@ class MainActivity: ComponentActivity(){
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 7)
         }
+    }
+
+    private fun updateLockState() {
+        if (isLocked) {
+            btnLock.text = "解除固定"
+            zoomSeekBar.isEnabled = false
+            Toast.makeText(this, "已锁定红框和焦距", Toast.LENGTH_SHORT).show()
+        } else {
+            btnLock.text = "锁定红框焦距"
+            zoomSeekBar.isEnabled = true
+            Toast.makeText(this, "已解除固定，可调整", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun savePreferences() {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        prefs.edit().apply {
+            putBoolean("isLocked", isLocked)
+            putInt("zoomProgress", zoomSeekBar.progress)
+            // 保存红框四个角的比例位置
+            putFloat("roiLeft", roi.roi.left)
+            putFloat("roiTop", roi.roi.top)
+            putFloat("roiRight", roi.roi.right)
+            putFloat("roiBottom", roi.roi.bottom)
+            apply()
+        }
+    }
+
+    private fun loadPreferences() {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        isLocked = prefs.getBoolean("isLocked", false)
+        val zoomProgress = prefs.getInt("zoomProgress", 0)
+        zoomSeekBar.progress = zoomProgress
+
+        // 恢复红框位置
+        val left = prefs.getFloat("roiLeft", -1f)
+        if (left != -1f) {
+            roi.roi.left = left
+            roi.roi.top = prefs.getFloat("roiTop", 0.2f)
+            roi.roi.right = prefs.getFloat("roiRight", 0.8f)
+            roi.roi.bottom = prefs.getFloat("roiBottom", 0.8f)
+            roi.invalidate()
+        }
+
+        updateLockState()
     }
 
     override fun onActivityResult(r: Int, c: Int, d: Intent?){
@@ -75,11 +140,15 @@ class MainActivity: ComponentActivity(){
             }
             p.unbindAll()
             cameraInstance = p.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, pv, a)
+            
+            // 相机绑定后，应用保存的变焦值
+            cameraInstance?.cameraControl?.setLinearZoom(zoomSeekBar.progress / 100f)
+            
             findViewById<TextView>(R.id.status).text = "状态：监控中 (竖屏)"
         }, ContextCompat.getMainExecutor(this))
     }
 
-    // 修复后的竖屏颜色检测与坐标对齐逻辑
+    // 颜色检测与竖屏坐标对齐
     private fun detect(im: ImageProxy): Boolean{
         val buf = im.planes[0].buffer
         val data = ByteArray(buf.remaining())
@@ -87,8 +156,6 @@ class MainActivity: ComponentActivity(){
         val w = im.width
         val h = im.height
         
-        // 核心修复：将竖屏 UI 上的红框相对坐标，精准映射到相机的实际像素坐标系中
-// 修正水平方向偏移（将检测范围向左平移对齐红框）
         val l = ((1f - roi.roi.bottom) * w).toInt().coerceIn(0, w - 1)
         val r = ((1f - roi.roi.top) * w).toInt().coerceIn(l + 1, w)
         val t = ((1f - roi.roi.right) * h).toInt().coerceIn(0, h - 1)
@@ -113,7 +180,6 @@ class MainActivity: ComponentActivity(){
                     else -> 60f * (4f + (rr - g) / (mx - mn))
                 }
                 val hh = (hue + 360) % 360
-                // 固定检测红、橙红、粉红等相近颜色
                 val isRedOrSimilar = (hh < 30 || hh > 330) && rr > g && rr > bb
                 if(isRedOrSimilar) hit++
                 total++
@@ -129,7 +195,6 @@ class MainActivity: ComponentActivity(){
             findViewById<TextView>(R.id.status).text = "状态：发现目标！报警中"
             if(!forced) startAlarm()
             
-            // 震动触发
             val vibrateCb = findViewById<CheckBox>(R.id.vibrate)
             if(vibrateCb != null && vibrateCb.isChecked){
                 val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
@@ -166,6 +231,11 @@ class MainActivity: ComponentActivity(){
         alarm?.stop()
         alarm?.release()
         alarm = null
+    }
+
+    override fun onPause() {
+        super.onPause()
+        savePreferences()
     }
 
     override fun onDestroy(){
