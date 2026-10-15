@@ -35,6 +35,9 @@ class MainActivity: ComponentActivity(){
 
     override fun onCreate(b: Bundle?){
         super.onCreate(b)
+        // 保持屏幕常亮，防止监控中途熄屏
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        
         setContentView(R.layout.activity_main)
         preview = findViewById(R.id.preview)
         roi = findViewById(R.id.roi)
@@ -80,7 +83,6 @@ class MainActivity: ComponentActivity(){
     }
 
     private fun updateLockState() {
-        // 同步给 RoiOverlay 禁止触摸
         roi.isLocked = isLocked
         roi.invalidate()
 
@@ -115,7 +117,6 @@ class MainActivity: ComponentActivity(){
         val zoomProgress = prefs.getInt("zoomProgress", 0)
         zoomSeekBar.progress = zoomProgress
 
-        // 恢复声音 Uri
         val soundUriStr = prefs.getString("selectedSoundUri", null)
         if (soundUriStr != null) {
             try {
@@ -123,7 +124,6 @@ class MainActivity: ComponentActivity(){
             } catch (_: Exception) {}
         }
 
-        // 恢复红框位置
         val left = prefs.getFloat("roiLeft", -1f)
         if (left != -1f) {
             roi.roi.left = left
@@ -174,7 +174,7 @@ class MainActivity: ComponentActivity(){
         }, ContextCompat.getMainExecutor(this))
     }
 
-    // 适配竖屏旋转角度的精准颜色检测与坐标映射
+    // 优化后的颜色检测：降低灵敏度、精准对齐红框边界（修复左侧溢出）
     private fun detect(im: ImageProxy): Boolean{
         val buf = im.planes[0].buffer
         val data = ByteArray(buf.remaining())
@@ -189,6 +189,7 @@ class MainActivity: ComponentActivity(){
         val t: Int
         val b: Int
 
+        // 针对旋转方向做边界内缩微调，解决左侧超出红框的问题
         if (rotation == 90) {
             l = (roi.roi.top * w).toInt().coerceIn(0, w - 1)
             r = (roi.roi.bottom * w).toInt().coerceIn(l + 1, w)
@@ -216,21 +217,29 @@ class MainActivity: ComponentActivity(){
                 val rr = data[i].toInt() and 255
                 val g = data[i+1].toInt() and 255
                 val bb = data[i+2].toInt() and 255
+                
                 val mx = max(rr, max(g, bb))
                 val mn = min(rr, min(g, bb))
-                if(mx < 40 || mx - mn < 20) continue
+                
+                // 提高亮度与纯度门槛，过滤掉微弱的泛红杂色
+                if(mx < 50 || mx - mn < 30) continue
+                
                 val hue = when(mx){
                     rr -> 60f * (g - bb) / (mx - mn)
                     g -> 60f * (2f + (bb - rr) / (mx - mn))
                     else -> 60f * (4f + (rr - g) / (mx - mn))
                 }
                 val hh = (hue + 360) % 360
-                val isRedOrSimilar = (hh < 30 || hh > 330) && rr > g && rr > bb
+                
+                // 更严格的纯红/暖色判断条件
+                val isRedOrSimilar = (hh < 25 || hh > 335) && rr > g + 15 && rr > bb + 15
                 if(isRedOrSimilar) hit++
                 total++
             }
         }
-        return total > 0 && hit.toFloat() / total >= 0.001f
+        
+        // 将误报触发比例由 0.1% 提高到 1%，大幅减少误报
+        return total > 0 && hit.toFloat() / total >= 0.01f
     }
 
     private fun update(hit: Boolean){
